@@ -14,6 +14,7 @@ class AppTheme {
       tertiary: Color(0xFFFF8F00), // orange (warnings/highlights)
 
       surface: Color(0xFFFFFFFF), // card/background
+      
       background: Color(0xFFF5F7FA), // app background
 
       error: Color(0xFFD32F2F),
