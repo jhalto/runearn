@@ -243,7 +243,7 @@ class _HomeViewState extends State<HomeView> {
               ],
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              
               children: [
                 Text(m.label, style: theme.textTheme.titleMedium),
                 const Spacer(),
