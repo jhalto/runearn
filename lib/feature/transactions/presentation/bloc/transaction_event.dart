@@ -15,3 +15,9 @@ class DeleteTransactionEvent extends TransactionEvent {
 
   DeleteTransactionEvent(this.id);
 }
+
+class UpdateTransactionEvent extends TransactionEvent {
+  final Transaction transaction;
+
+  UpdateTransactionEvent(this.transaction);
+}

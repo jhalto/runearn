@@ -36,5 +36,14 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
 
       emit(TransactionLoaded(transactions: data, analytics: analytics));
     });
+
+    on<UpdateTransactionEvent>((event, emit) async {
+      await repository.updateTransaction(event.transaction);
+
+      final data = await repository.getTransactions();
+      final analytics = TransactionAnalytics(data);
+
+      emit(TransactionLoaded(transactions: data, analytics: analytics));
+    });
   }
 }

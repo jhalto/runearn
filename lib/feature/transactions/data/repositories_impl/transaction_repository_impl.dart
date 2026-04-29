@@ -19,6 +19,12 @@ class TransactionRepositoryImpl implements TransactionRepository {
   }
 
   @override
+  Future<void> updateTransaction(Transaction transaction) async {
+    final model = TransactionModel.fromEntity(transaction);
+    await TransactionDB.updateTransaction(model.toMap());
+  }
+
+  @override
   Future<void> deleteTransaction(String id) async {
     await TransactionDB.deleteTransaction(id);
   }

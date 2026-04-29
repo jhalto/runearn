@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:runearn/core/utils/category_helper.dart';
+import 'package:runearn/core/utils/date_picker_helper.dart';
 import '../../domain/entities/transaction.dart';
 import '../../domain/entities/transaction_category.dart';
 import '../../domain/entities/transaction_type.dart';
@@ -8,6 +9,7 @@ import '../bloc/transaction_bloc.dart';
 import '../bloc/transaction_event.dart';
 
 void showAddTransactionSheet(BuildContext context) {
+  DateTime selectedDate = DateTime.now();
   final formKey = GlobalKey<FormState>();
   final bloc = context.read<TransactionBloc>();
 
@@ -131,6 +133,30 @@ void showAddTransactionSheet(BuildContext context) {
                     ),
 
                     const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await DatePickerHelper.pickDate(
+                          context,
+                          initialDate: selectedDate,
+                        );
+
+                        if (picked != null) {
+                          setState(() {
+                            selectedDate = picked;
+                          });
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: "Date (Optional)",
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}",
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
                     ElevatedButton(
                       onPressed: () {
@@ -157,6 +183,7 @@ void showAddTransactionSheet(BuildContext context) {
                       },
                       child: const Text("Add Transaction"),
                     ),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -195,7 +222,10 @@ void _showCategoryPicker(
                   children: [
                     const Text(
                       "Select Category",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
 
                     const SizedBox(height: 10),
@@ -211,9 +241,9 @@ void _showCategoryPicker(
                         setState(() {
                           filtered = categories
                               .where(
-                                (e) => e.name
-                                    .toLowerCase()
-                                    .contains(value.toLowerCase()),
+                                (e) => e.name.toLowerCase().contains(
+                                  value.toLowerCase(),
+                                ),
                               )
                               .toList();
                         });

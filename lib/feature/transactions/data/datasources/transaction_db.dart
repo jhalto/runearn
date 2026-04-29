@@ -1,13 +1,16 @@
+import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 class TransactionDB {
-  static Database? _db;
+  static Future<Database>? _db;
+
+  static Future<void> init() async {
+    await database;
+  }
 
   static Future<Database> get database async {
-    if (_db != null) return _db!;
-
-    _db = await _initDB('transactions.db');
+    _db ??= _initDB('transactions.db');
     return _db!;
   }
 
@@ -18,6 +21,10 @@ class TransactionDB {
     return openDatabase(
       path,
       version: 1,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA journal_mode=WAL;'); // 🚀 better performance
+      },
+
       onCreate: (db, version) async {
         // 📌 MAIN TABLE
         await db.execute('''
@@ -41,23 +48,23 @@ class TransactionDB {
 
   // 📥 INSERT
   static Future<void> insertTransaction(Map<String, dynamic> data) async {
-    final db = await database;
-
-    await db.insert(
-      'transactions',
-      data,
-      conflictAlgorithm: ConflictAlgorithm.replace, // safe overwrite
-    );
+    try {
+      final db = await database;
+      await db.insert(
+        'transactions',
+        data,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      debugPrint("DB Insert Error: $e");
+    }
   }
 
   // 📤 GET ALL
   static Future<List<Map<String, dynamic>>> getTransactions() async {
     final db = await database;
 
-    return await db.query(
-      'transactions',
-      orderBy: 'date DESC',
-    );
+    return await db.query('transactions', orderBy: 'date DESC');
   }
 
   // 🔍 FILTER BY TYPE (income/expense)
@@ -73,7 +80,9 @@ class TransactionDB {
   }
 
   // 🔍 FILTER BY CATEGORY
-  static Future<List<Map<String, dynamic>>> getByCategory(String category) async {
+  static Future<List<Map<String, dynamic>>> getByCategory(
+    String category,
+  ) async {
     final db = await database;
 
     return await db.query(
@@ -83,21 +92,35 @@ class TransactionDB {
       orderBy: 'date DESC',
     );
   }
+  // update
+
+  static Future<void> updateTransaction(Map<String, dynamic> data) async {
+    final db = await database;
+
+    await db.update(
+      'transactions',
+      data,
+      where: 'id = ?',
+      whereArgs: [data['id']],
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
 
   // 🗑 DELETE
   static Future<void> deleteTransaction(String id) async {
     final db = await database;
 
-    await db.delete(
-      'transactions',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('transactions', where: 'id = ?', whereArgs: [id]);
   }
 
   // ⚠️ OPTIONAL: CLEAR ALL DATA
   static Future<void> clearAll() async {
     final db = await database;
     await db.delete('transactions');
+  }
+
+  static Future<void> close() async {
+    final db = await database;
+    await db.close();
   }
 }

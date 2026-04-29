@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:runearn/core/theme/theme_cubit.dart';
 import 'package:runearn/feature/transactions/domain/entities/transaction_type.dart';
-import 'package:runearn/feature/transactions/domain/usecases/transaction_analytics.dart';
 import 'package:runearn/feature/transactions/presentation/bloc/transaction_bloc.dart';
+import 'package:runearn/feature/transactions/presentation/bloc/transaction_event.dart';
 import 'package:runearn/feature/transactions/presentation/bloc/transaction_state.dart';
+import 'package:runearn/feature/transactions/presentation/views/expense_view.dart';
+import 'package:runearn/feature/transactions/presentation/views/income_view.dart';
+import 'package:runearn/feature/transactions/presentation/views/transaction_detail_view.dart';
 import 'package:runearn/feature/transactions/presentation/widgets/add_transaction_sheet.dart';
+import 'package:runearn/feature/transactions/presentation/widgets/edit_transaction_sheet.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -40,8 +44,8 @@ class _HomeViewState extends State<HomeView> {
             final data = selectedIndex == 0
                 ? analytics.monthly()
                 : selectedIndex == 1
-                    ? analytics.weekly()
-                    : analytics.yearly();
+                ? analytics.weekly()
+                : analytics.yearly();
 
             return Column(
               children: [
@@ -84,20 +88,25 @@ class _HomeViewState extends State<HomeView> {
   // ========================= UI PARTS =========================
 
   Widget _buildBalanceCard(ThemeData theme, analytics) {
+    final isNegative = analytics.balance < 0;
+
     return Container(
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            theme.colorScheme.primary.withOpacity(0.7),
-          ],
+          colors: isNegative
+              ? [Colors.red, Colors.redAccent]
+              : [
+                  theme.colorScheme.primary,
+                  theme.colorScheme.primary.withOpacity(0.7),
+                ],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.3),
+            color: (isNegative ? Colors.red : theme.colorScheme.primary)
+                .withOpacity(0.3),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -127,13 +136,26 @@ class _HomeViewState extends State<HomeView> {
       child: Row(
         children: [
           _summaryCard(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => IncomeView()),
+              );
+            },
             "Income",
             analytics.totalIncome,
             Colors.green,
             Icons.arrow_downward,
           ),
+
           const SizedBox(width: 10),
           _summaryCard(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ExpenseView()),
+              );
+            },
             "Expense",
             analytics.totalExpense,
             Colors.red,
@@ -144,32 +166,38 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _summaryCard(String title, double amount, Color color, IconData icon) {
+  Widget _summaryCard(
+    String title,
+    double amount,
+    Color color,
+    IconData icon, {
+    GestureTapCallback? onTap,
+  }) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title),
-                Text(
-                  "৳${amount.toStringAsFixed(0)}",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: color,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: color),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title),
+                  Text(
+                    "৳${amount.toStringAsFixed(0)}",
+                    style: TextStyle(fontWeight: FontWeight.bold, color: color),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -211,10 +239,7 @@ class _HomeViewState extends State<HomeView> {
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 6,
-                ),
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6),
               ],
             ),
             child: Column(
@@ -228,9 +253,7 @@ class _HomeViewState extends State<HomeView> {
                   "৳${m.balance.toStringAsFixed(0)}",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: m.balance >= 0
-                        ? Colors.green
-                        : Colors.red,
+                    color: m.balance >= 0 ? Colors.green : Colors.red,
                   ),
                 ),
               ],
@@ -249,27 +272,59 @@ class _HomeViewState extends State<HomeView> {
 
         final isIncome = t.type == TransactionType.income;
 
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor:
-                  (isIncome ? Colors.green : Colors.red).withOpacity(0.1),
-              child: Icon(
-                isIncome ? Icons.add : Icons.remove,
-                color: isIncome ? Colors.green : Colors.red,
-              ),
+        return InkWell(
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => TransactionDetailView(transaction: t)));
+          },
+          child: Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            title: Text(t.description),
-            subtitle: Text(t.category.toString().split('.').last),
-            trailing: Text(
-              "${isIncome ? '+' : '-'}৳${t.amount}",
-              style: TextStyle(
-                color: isIncome ? Colors.green : Colors.red,
-                fontWeight: FontWeight.bold,
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: (isIncome ? Colors.green : Colors.red)
+                    .withOpacity(0.1),
+                child: Icon(
+                  isIncome ? Icons.add : Icons.remove,
+                  color: isIncome ? Colors.green : Colors.red,
+                ),
+              ),
+          
+              title: Text(t.description),
+              subtitle: Text(t.category.toString().split('.').last),
+          
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "${isIncome ? '+' : '-'}৳${t.amount}",
+                    style: TextStyle(
+                      color: isIncome ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          
+                  const SizedBox(width: 10),
+          
+                  // ✏️ EDIT
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20),
+                    onPressed: () {
+                      showEditTransactionSheet(context, t);
+                    },
+                  ),
+          
+                  // 🗑 DELETE
+                  IconButton(
+                    icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                    onPressed: () {
+                      context.read<TransactionBloc>().add(
+                        DeleteTransactionEvent(t.id),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
