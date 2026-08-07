@@ -1,0 +1,42 @@
+class Routes {
+  const Routes._();
+
+  static const String login = '/login';
+  static const String register = '/register';
+  static const String home = '/home';
+  static const String netWorth = '/net-worth';
+  static const String netWorthAssets = '/net-worth/assets';
+  static const String netWorthLiabilities = '/net-worth/liabilities';
+  static const String netWorthDetails = '/net-worth/details';
+  static const String budgets = '/budgets';
+  static const String goals = '/goals';
+  static const String addGoal = '/goals/add';
+  static const String recurring = '/recurring';
+  static const String addRecurring = '/recurring/add';
+  static const String reports = '/reports';
+  static const String tours = '/tours';
+  static const String addTour = '/tours/add';
+  static const String tourDetails = '/tours/details';
+  static const String tourCollections = '/tours/collections';
+  static const String tourContributorDetails = '/tours/collections/contributor';
+  static const String tourExpenses = '/tours/expenses';
+  static const String accounts = '/accounts';
+  static const String addAccount = '/accounts/add';
+  static const String transfers = '/accounts/transfers';
+  static const String addTransfer = '/accounts/transfers/add';
+  static const String income = '/income';
+  static const String addIncome = '/income/add';
+  static const String expense = '/expense';
+  static const String addExpense = '/expense/add';
+  static const String transactionSearch = '/transactions/search';
+  static const String moneyLent = '/loans/lent';
+  static const String moneyBorrowed = '/loans/borrowed';
+  static const String addLoanGiven = '/loans/lent/add';
+  static const String addLoanTaken = '/loans/borrowed/add';
+  static const String loanDetails = '/loans/details';
+  static const String profile = '/profile';
+  static const String settings = '/settings';
+  static const String clearData = '/settings/clear-data';
+  static const String backup = '/settings/backup';
+  static const String currencies = '/settings/currencies';
+}

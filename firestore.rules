@@ -1,0 +1,207 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validOwnerField(userId) {
+      return !request.resource.data.keys().hasAny(['userId']) ||
+          request.resource.data.userId == userId;
+    }
+
+    function validSyncMetadata(userId, recordId) {
+      return request.resource.data.id == recordId &&
+          request.resource.data.updatedAt is string &&
+          (resource == null ||
+            request.resource.data.updatedAt > resource.data.updatedAt) &&
+          (!request.resource.data.keys().hasAny(['deletedAt']) ||
+            request.resource.data.deletedAt == null ||
+            request.resource.data.deletedAt is string) &&
+          !request.resource.data.keys().hasAny(['isSynced']) &&
+          validOwnerField(userId);
+    }
+
+    function validMoneyRecord(userId, recordId) {
+      return validSyncMetadata(userId, recordId) &&
+          (!request.resource.data.keys().hasAny(['amount']) ||
+            (request.resource.data.amount is number &&
+              request.resource.data.amount >= 0)) &&
+          (!request.resource.data.keys().hasAny(['balance']) ||
+            request.resource.data.balance is number) &&
+          (!request.resource.data.keys().hasAny(['limit']) ||
+            (request.resource.data.limit is number &&
+              request.resource.data.limit >= 0));
+    }
+
+    function validProfile(userId) {
+      return request.resource.data.keys().hasOnly([
+          'uid', 'name', 'email', 'photoUrl', 'provider', 'isGuest',
+          'currency', 'createdAt', 'updatedAt', 'lastLoginAt'
+        ]) &&
+        request.resource.data.uid == userId &&
+        request.resource.data.name is string &&
+        request.resource.data.currency is string;
+    }
+
+    match /users/{userId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && validProfile(userId);
+
+      match /transactions/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, recordId) &&
+          request.resource.data.type in ['income', 'expense'];
+        allow delete: if isOwner(userId);
+      }
+
+      match /accounts/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, recordId) &&
+          request.resource.data.name is string &&
+          request.resource.data.type is string;
+        allow delete: if isOwner(userId);
+      }
+
+      match /accountTransfers/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, recordId) &&
+          request.resource.data.fromAccountId is string &&
+          request.resource.data.toAccountId is string &&
+          request.resource.data.fromAccountId !=
+            request.resource.data.toAccountId;
+        allow delete: if isOwner(userId);
+      }
+
+      match /budgets/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, recordId) &&
+          request.resource.data.categoryName is string;
+        allow delete: if isOwner(userId);
+      }
+
+      match /goals/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, recordId) &&
+          request.resource.data.name is string &&
+          request.resource.data.targetAmount is number &&
+          request.resource.data.targetAmount > 0;
+        allow delete: if isOwner(userId);
+      }
+
+      match /goalContributions/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, recordId) &&
+          request.resource.data.goalId is string &&
+          request.resource.data.amount > 0;
+        allow delete: if isOwner(userId);
+      }
+
+      match /recurringTransactions/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, recordId) &&
+          request.resource.data.title is string &&
+          request.resource.data.type in ['income', 'expense'];
+        allow delete: if isOwner(userId);
+      }
+
+      match /loans/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, recordId) &&
+          request.resource.data.personName is string &&
+          request.resource.data.amount is number &&
+          request.resource.data.amount > 0;
+        allow delete: if isOwner(userId);
+      }
+
+      match /loanPayments/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, recordId) &&
+          request.resource.data.loanId is string &&
+          request.resource.data.amount > 0;
+        allow delete: if isOwner(userId);
+      }
+
+      match /tours/{tourId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) &&
+          validMoneyRecord(userId, tourId) &&
+          request.resource.data.name is string;
+        allow delete: if isOwner(userId);
+
+        match /collections/{recordId} {
+          allow read: if isOwner(userId);
+          allow create, update: if isOwner(userId) &&
+            validMoneyRecord(userId, recordId) &&
+            request.resource.data.tourId == tourId &&
+            request.resource.data.memberName is string &&
+            request.resource.data.amount > 0;
+          allow delete: if isOwner(userId);
+        }
+
+        match /expenses/{recordId} {
+          allow read: if isOwner(userId);
+          allow create, update: if isOwner(userId) &&
+            validMoneyRecord(userId, recordId) &&
+            request.resource.data.tourId == tourId &&
+            request.resource.data.amount > 0;
+          allow delete: if isOwner(userId);
+        }
+      }
+
+      // Legacy tour records remain readable for one-way local migration.
+      match /tourCollections/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if false;
+        allow delete: if isOwner(userId);
+      }
+
+      match /tourExpenses/{recordId} {
+        allow read: if isOwner(userId);
+        allow create, update: if false;
+        allow delete: if isOwner(userId);
+      }
+
+      match /auditLogs/{auditId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+          request.resource.data.keys().hasOnly([
+            'entityType', 'entityId', 'action', 'clientUpdatedAt',
+            'recordedAt', 'changedFields'
+          ]) &&
+          request.resource.data.entityType in [
+            'transactions', 'accounts', 'accountTransfers', 'budgets',
+            'goals', 'goalContributions', 'recurringTransactions', 'loans',
+            'loanPayments', 'tours', 'tourCollections', 'tourExpenses'
+          ] &&
+          request.resource.data.entityId is string &&
+          request.resource.data.action in ['create', 'update', 'delete'] &&
+          request.resource.data.clientUpdatedAt is string &&
+          request.resource.data.recordedAt == request.time &&
+          request.resource.data.changedFields is list &&
+          request.resource.data.changedFields.size() <= 64;
+        allow update: if false;
+        allow delete: if isOwner(userId);
+      }
+
+      // Deny unrecognized user subcollections by default.
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+  }
+}
